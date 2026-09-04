@@ -1,114 +1,518 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Support Desk API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A role-based customer support ticket management API built with NestJS, TypeScript, PostgreSQL, TypeORM, JWT authentication, and bcrypt.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Tech Stack
 
-## Description
+- NestJS
+- TypeScript
+- PostgreSQL
+- TypeORM
+- JWT Authentication
+- bcrypt
+- class-validator
+- Jest
+- Supertest
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Roles
 
-## Project setup
+The API supports three roles:
 
-```bash
-$ npm install
+### Customer
+
+- Register and login
+- Create tickets
+- View only their own tickets
+- Update their own tickets
+- Add public comments
+- View only public comments on their tickets
+- View ticket events for their own tickets
+- View available tags
+
+### Agent
+
+- Login
+- View tickets
+- Update tickets
+- Assign tickets to agents/admins
+- Change ticket status
+- Add public and internal comments
+- View internal comments
+- Manage ticket tags
+- View ticket events
+
+### Admin
+
+- Login
+- All agent capabilities
+- Create tags
+- Delete tickets
+- Manage administrative operations
+
+## Seed Accounts
+
+The database seed creates the following accounts.
+
+| Role     | Email                       | Password        |
+| -------- | --------------------------- | --------------- |
+| Admin    | admin@supportdesk.local     | SupportDesk123! |
+| Agent    | agent1@supportdesk.local    | SupportDesk123! |
+| Agent    | agent2@supportdesk.local    | SupportDesk123! |
+| Customer | customer1@supportdesk.local | SupportDesk123! |
+| Customer | customer2@supportdesk.local | SupportDesk123! |
+| Customer | customer3@supportdesk.local | SupportDesk123! |
+| Customer | customer4@supportdesk.local | SupportDesk123! |
+| Customer | customer5@supportdesk.local | SupportDesk123! |
+
+The seed is idempotent and can be run multiple times safely.
+
+## Environment Variables
+
+Create a `.env` file in the project root.
+
+Example:
+
+```env
+PORT=3000
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_postgres_password
+DB_NAME=support_desk
+
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRES_IN=1d
 ```
 
-## Compile and run the project
+````
+
+See `.env.example` for the required environment variable names.
+
+Do not commit real secrets or passwords to the repository.
+
+## Installation
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
+## Database Setup
+
+Make sure PostgreSQL is running and the `support_desk` database exists.
+
+Run the committed migration:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run migration:run
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Then run the seed:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run seed
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Database setup order
 
-## Observability
+1. Configure `.env`
+2. Create the PostgreSQL database
+3. Run migrations
+4. Run the seed
+5. Start the API
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+The application uses `synchronize=false`; database structure is managed through migrations.
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+## Running the Application
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+Development:
 
-## Resources
+```bash
+npm run start
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+Watch mode:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+npm run start:dev
+```
 
-## Support
+Production:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+npm run build
+npm run start:prod
+```
 
-## Stay in touch
+The API runs on:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```text
+http://localhost:3000
+```
 
-## License
+## Authentication Endpoints
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Register
+
+```http
+POST /auth/register
+```
+
+Creates a customer account.
+
+A client cannot choose an elevated role during registration.
+
+### Login
+
+```http
+POST /auth/login
+```
+
+Returns a JWT access token.
+
+### Current User
+
+```http
+GET /auth/me
+Authorization: Bearer <token>
+```
+
+Returns the authenticated user's profile without exposing the password hash.
+
+## Ticket Endpoints
+
+### Create Ticket
+
+```http
+POST /tickets
+Authorization: Bearer <token>
+```
+
+Customers can create tickets.
+
+Priority determines the server-generated due date:
+
+- `urgent` → 4 hours
+- `high` → 24 hours
+- `normal` → 72 hours
+- `low` → 168 hours
+
+`dueAt` cannot be supplied by the client.
+
+### List Tickets
+
+```http
+GET /tickets
+Authorization: Bearer <token>
+```
+
+Supports:
+
+- `status`
+- `priority`
+- `assigneeId`
+- `tag`
+- `q`
+- `overdue`
+- `sort`
+- `order`
+- `page`
+- `pageSize`
+
+Example:
+
+```text
+GET /tickets?status=open&priority=high&page=1&pageSize=10
+```
+
+Customers only receive their own tickets.
+
+### Get Ticket
+
+```http
+GET /tickets/:id
+Authorization: Bearer <token>
+```
+
+### Update Ticket
+
+```http
+PATCH /tickets/:id
+Authorization: Bearer <token>
+```
+
+### Assign Ticket
+
+```http
+PATCH /tickets/:id/assign
+Authorization: Bearer <token>
+```
+
+Only an agent or admin can be assigned.
+
+### Change Ticket Status
+
+```http
+PATCH /tickets/:id/status
+Authorization: Bearer <token>
+```
+
+Allowed status flow:
+
+```text
+open → in_progress → resolved → closed
+                       ↓
+                  in_progress
+
+closed → in_progress
+```
+
+Invalid transitions return `409 Conflict`.
+
+Reopening a closed ticket requires a note.
+
+### Delete Ticket
+
+```http
+DELETE /tickets/:id
+Authorization: Bearer <token>
+```
+
+Admin only.
+
+## Comments
+
+### Create Comment
+
+```http
+POST /tickets/:ticketId/comments
+Authorization: Bearer <token>
+```
+
+Comments can be public or internal.
+
+Customers cannot create internal comments.
+
+### List Comments
+
+```http
+GET /tickets/:ticketId/comments
+Authorization: Bearer <token>
+```
+
+Customers only receive public comments.
+
+Agents and admins can see internal comments.
+
+## Tags
+
+### List Tags
+
+```http
+GET /tags
+Authorization: Bearer <token>
+```
+
+### Create Tag
+
+```http
+POST /tags
+Authorization: Bearer <token>
+```
+
+Admin only.
+
+### Attach Tag
+
+```http
+POST /tickets/:ticketId/tags
+Authorization: Bearer <token>
+```
+
+Agent/admin only.
+
+### Remove Tag
+
+```http
+DELETE /tickets/:ticketId/tags/:tagId
+Authorization: Bearer <token>
+```
+
+Agent/admin only.
+
+## Ticket Events
+
+### List Ticket Events
+
+```http
+GET /tickets/:ticketId/events
+Authorization: Bearer <token>
+```
+
+Events are automatically written when:
+
+- A ticket is assigned
+- A ticket changes status
+
+There is no direct event creation endpoint.
+
+Events are returned newest first.
+
+## Authorization
+
+Protected endpoints require:
+
+```http
+Authorization: Bearer <JWT>
+```
+
+Role-based endpoints use declarative roles and a `RolesGuard`.
+
+Unauthorized requests return `401`.
+
+Authenticated users without the required role return `403`.
+
+## Validation and Errors
+
+The API uses global validation with:
+
+- whitelist
+- forbidNonWhitelisted
+
+Errors use a consistent response structure:
+
+```json
+{
+  "message": "Error message",
+  "error": "Bad Request",
+  "statusCode": 400,
+  "path": "/example",
+  "timestamp": "2026-09-04T00:00:00.000Z"
+}
+```
+
+## Testing
+
+Run unit tests:
+
+```bash
+npm test
+```
+
+Run end-to-end tests:
+
+```bash
+npm run test:e2e
+```
+
+Run coverage:
+
+```bash
+npm run test:cov
+```
+
+Unit tests cover:
+
+- Legal status transitions
+- Illegal status transitions
+- Closed-ticket reopening rule
+- Due-date calculation for all priorities
+- Customer ticket visibility
+
+The unit tests mock repositories and do not require a running database.
+
+## Build
+
+```bash
+npm run build
+```
+
+## Database Migration Commands
+
+Generate a migration:
+
+```bash
+npm run migration:generate
+```
+
+Run migrations:
+
+```bash
+npm run migration:run
+```
+
+Revert the latest migration:
+
+```bash
+npm run migration:revert
+```
+
+## Project Structure
+
+```text
+src/
+├── auth/
+├── comments/
+├── common/
+├── seed/
+├── tags/
+├── ticket-events/
+├── ticket-tags/
+├── tickets/
+├── users/
+├── app.module.ts
+├── data-source.ts
+└── main.ts
+
+docs/
+└── ERD.md
+
+src/migrations/
+└── InitialSchema migration
+```
+
+## CORS
+
+The API allows the development frontend origin:
+
+```text
+http://localhost:3000
+```
+
+## CI
+
+The project CI runs on pushes and pull requests.
+
+CI performs:
+
+```bash
+npm ci
+npm run build
+npm test
+```
+
+CI uses Node.js 20.
+
+## Database Design
+
+The project contains six main tables:
+
+- users
+- tickets
+- comments
+- tags
+- ticket_tags
+- ticket_events
+
+See [`docs/ERD.md`](docs/ERD.md) for the complete Mermaid ER diagram.
+
+## Security
+
+- Passwords are hashed using bcrypt.
+- JWT is used for authentication.
+- Password hashes are never returned in API responses.
+- Customers cannot register as agents or admins.
+- Internal comments are hidden from customers.
+- Customer ticket visibility is restricted to their own tickets.
+- Real secrets must be stored in environment variables.
+````

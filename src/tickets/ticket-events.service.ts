@@ -44,7 +44,7 @@ export class TicketEventsService {
     const events = await this.eventsRepository.find({
       where: { ticket: { id: ticketId } },
       relations: ['actor'],
-      order: { createdAt: 'ASC' },
+      order: { createdAt: 'DESC' },
     });
 
     return events.map((event) => ({
