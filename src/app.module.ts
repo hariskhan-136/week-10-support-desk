@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { CommentsModule } from './comments/comments.module';
@@ -29,6 +30,8 @@ import { AppService } from './app.service';
         synchronize: false,
       }),
     }),
+
+    AuthModule,
 
     UsersModule,
     TicketsModule,
