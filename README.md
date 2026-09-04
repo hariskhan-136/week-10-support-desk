@@ -26,19 +26,19 @@ The API supports three roles:
 - Update their own tickets
 - Add public comments
 - View only public comments on their tickets
-- View ticket events for their own tickets
+- View events for their own tickets
 - View available tags
 
 ### Agent
 
 - Login
-- View tickets
+- View all tickets
 - Update tickets
 - Assign tickets to agents/admins
 - Change ticket status
 - Add public and internal comments
 - View internal comments
-- Manage ticket tags
+- Attach and remove ticket tags
 - View ticket events
 
 ### Admin
@@ -51,18 +51,18 @@ The API supports three roles:
 
 ## Seed Accounts
 
-The database seed creates the following accounts.
+The database seed creates the following accounts:
 
-| Role     | Email                       | Password        |
-| -------- | --------------------------- | --------------- |
-| Admin    | admin@supportdesk.local     | SupportDesk123! |
-| Agent    | agent1@supportdesk.local    | SupportDesk123! |
-| Agent    | agent2@supportdesk.local    | SupportDesk123! |
-| Customer | customer1@supportdesk.local | SupportDesk123! |
-| Customer | customer2@supportdesk.local | SupportDesk123! |
-| Customer | customer3@supportdesk.local | SupportDesk123! |
-| Customer | customer4@supportdesk.local | SupportDesk123! |
-| Customer | customer5@supportdesk.local | SupportDesk123! |
+| Role     | Email                         | Password          |
+| -------- | ----------------------------- | ----------------- |
+| Admin    | `admin@supportdesk.local`     | `SupportDesk123!` |
+| Agent    | `agent1@supportdesk.local`    | `SupportDesk123!` |
+| Agent    | `agent2@supportdesk.local`    | `SupportDesk123!` |
+| Customer | `customer1@supportdesk.local` | `SupportDesk123!` |
+| Customer | `customer2@supportdesk.local` | `SupportDesk123!` |
+| Customer | `customer3@supportdesk.local` | `SupportDesk123!` |
+| Customer | `customer4@supportdesk.local` | `SupportDesk123!` |
+| Customer | `customer5@supportdesk.local` | `SupportDesk123!` |
 
 The seed is idempotent and can be run multiple times safely.
 
@@ -85,8 +85,6 @@ JWT_SECRET=your_jwt_secret
 JWT_EXPIRES_IN=1d
 ```
 
-````
-
 See `.env.example` for the required environment variable names.
 
 Do not commit real secrets or passwords to the repository.
@@ -101,6 +99,14 @@ npm install
 
 Make sure PostgreSQL is running and the `support_desk` database exists.
 
+### Database Setup Order
+
+1. Configure `.env`
+2. Create the PostgreSQL database
+3. Run the migration
+4. Run the seed
+5. Start the API
+
 Run the committed migration:
 
 ```bash
@@ -113,15 +119,7 @@ Then run the seed:
 npm run seed
 ```
 
-### Database setup order
-
-1. Configure `.env`
-2. Create the PostgreSQL database
-3. Run migrations
-4. Run the seed
-5. Start the API
-
-The application uses `synchronize=false`; database structure is managed through migrations.
+The application uses `synchronize=false`. Database structure is managed through migrations.
 
 ## Running the Application
 
@@ -160,7 +158,9 @@ POST /auth/register
 
 Creates a customer account.
 
-A client cannot choose an elevated role during registration.
+Registration always creates a `customer`.
+
+A client cannot choose `agent` or `admin` through the registration request.
 
 ### Login
 
@@ -188,9 +188,9 @@ POST /tickets
 Authorization: Bearer <token>
 ```
 
-Customers can create tickets.
+Creates a ticket.
 
-Priority determines the server-generated due date:
+The due date is calculated server-side from the selected priority:
 
 - `urgent` → 4 hours
 - `high` → 24 hours
@@ -225,7 +225,43 @@ Example:
 GET /tickets?status=open&priority=high&page=1&pageSize=10
 ```
 
+The filters can be combined.
+
+The `q` parameter performs a case-insensitive search across the ticket subject and body.
+
+The `overdue=true` filter returns tickets whose due date has passed and which are not resolved or closed.
+
+Sorting supports:
+
+- `createdAt`
+- `dueAt`
+- `priority`
+
+Ordering supports:
+
+- `asc`
+- `desc`
+
+Pagination uses `page` and `pageSize`.
+
+The default `pageSize` is `20` and the maximum is `100`.
+
+The response uses the following envelope:
+
+```json
+{
+  "data": [],
+  "page": 1,
+  "pageSize": 20,
+  "total": 0
+}
+```
+
+`total` represents the number of records matching the filters before pagination.
+
 Customers only receive their own tickets.
+
+Agents and admins can view all tickets.
 
 ### Get Ticket
 
@@ -234,6 +270,10 @@ GET /tickets/:id
 Authorization: Bearer <token>
 ```
 
+Returns a single ticket.
+
+A customer attempting to access another customer's ticket receives `404 Not Found`.
+
 ### Update Ticket
 
 ```http
@@ -241,35 +281,51 @@ PATCH /tickets/:id
 Authorization: Bearer <token>
 ```
 
+The ticket requester or an authorized agent can update the ticket.
+
 ### Assign Ticket
 
 ```http
-PATCH /tickets/:id/assign
+POST /tickets/:id/assign
 Authorization: Bearer <token>
 ```
 
-Only an agent or admin can be assigned.
+Only agents and admins can assign tickets.
+
+The proposed assignee must be an agent or admin.
+
+Assigning a customer returns `422 Unprocessable Entity`.
+
+Every assignment creates a ticket event.
 
 ### Change Ticket Status
 
 ```http
-PATCH /tickets/:id/status
+POST /tickets/:id/status
 Authorization: Bearer <token>
 ```
 
-Allowed status flow:
+Only agents and admins can change ticket status.
+
+Allowed status transitions are:
 
 ```text
-open → in_progress → resolved → closed
-                       ↓
-                  in_progress
-
+open → in_progress
+in_progress → resolved
+resolved → closed
+resolved → in_progress
 closed → in_progress
 ```
 
-Invalid transitions return `409 Conflict`.
+Invalid status transitions return:
 
-Reopening a closed ticket requires a note.
+```text
+409 Conflict
+```
+
+Reopening a closed ticket requires a non-empty note.
+
+Every status change creates a ticket event.
 
 ### Delete Ticket
 
@@ -280,6 +336,8 @@ Authorization: Bearer <token>
 
 Admin only.
 
+Deleting a ticket also removes its related comments and events.
+
 ## Comments
 
 ### Create Comment
@@ -289,9 +347,11 @@ POST /tickets/:ticketId/comments
 Authorization: Bearer <token>
 ```
 
-Comments can be public or internal.
+Creates a public or internal comment.
 
-Customers cannot create internal comments.
+Only agents and admins can create internal comments.
+
+Customers attempting to create an internal comment receive `403 Forbidden`.
 
 ### List Comments
 
@@ -304,6 +364,8 @@ Customers only receive public comments.
 
 Agents and admins can see internal comments.
 
+Internal comments are never returned to customers.
+
 ## Tags
 
 ### List Tags
@@ -313,6 +375,8 @@ GET /tags
 Authorization: Bearer <token>
 ```
 
+Available to all authenticated users.
+
 ### Create Tag
 
 ```http
@@ -321,6 +385,12 @@ Authorization: Bearer <token>
 ```
 
 Admin only.
+
+Creating a duplicate tag returns:
+
+```text
+409 Conflict
+```
 
 ### Attach Tag
 
@@ -349,10 +419,12 @@ GET /tickets/:ticketId/events
 Authorization: Bearer <token>
 ```
 
-Events are automatically written when:
+Events are automatically created by the server when:
 
 - A ticket is assigned
 - A ticket changes status
+
+Each event records the actor and the change.
 
 There is no direct event creation endpoint.
 
@@ -360,24 +432,36 @@ Events are returned newest first.
 
 ## Authorization
 
+All endpoints except registration and login require authentication.
+
 Protected endpoints require:
 
 ```http
 Authorization: Bearer <JWT>
 ```
 
-Role-based endpoints use declarative roles and a `RolesGuard`.
+Role-based endpoints use the declarative `@Roles()` decorator and `RolesGuard`.
 
-Unauthorized requests return `401`.
+Unauthorized requests return:
 
-Authenticated users without the required role return `403`.
+```text
+401 Unauthorized
+```
+
+Authenticated users without the required role return:
+
+```text
+403 Forbidden
+```
 
 ## Validation and Errors
 
-The API uses global validation with:
+The API uses a global `ValidationPipe` configured with:
 
-- whitelist
-- forbidNonWhitelisted
+- `whitelist`
+- `forbidNonWhitelisted`
+
+This rejects undeclared request properties such as a client-supplied `dueAt`.
 
 Errors use a consistent response structure:
 
@@ -413,13 +497,25 @@ npm run test:cov
 
 Unit tests cover:
 
-- Legal status transitions
-- Illegal status transitions
+- All legal status transitions
+- All illegal status transitions
 - Closed-ticket reopening rule
-- Due-date calculation for all priorities
+- Due-date calculation for all four priorities
 - Customer ticket visibility
 
 The unit tests mock repositories and do not require a running database.
+
+The end-to-end test uses real HTTP requests and covers:
+
+- Customer registration
+- Login
+- Ticket creation
+- Ticket filtering and pagination
+- Ticket assignment
+- Legal status transition
+- Illegal status transition returning `409`
+- Comment creation
+- Customer isolation returning `404`
 
 ## Build
 
@@ -428,12 +524,6 @@ npm run build
 ```
 
 ## Database Migration Commands
-
-Generate a migration:
-
-```bash
-npm run migration:generate
-```
 
 Run migrations:
 
@@ -447,6 +537,14 @@ Revert the latest migration:
 npm run migration:revert
 ```
 
+Generate a migration when required:
+
+```bash
+npm run migration:generate
+```
+
+The project contains one committed initial migration that creates the complete Support Desk schema.
+
 ## Project Structure
 
 ```text
@@ -454,6 +552,7 @@ src/
 ├── auth/
 ├── comments/
 ├── common/
+├── migrations/
 ├── seed/
 ├── tags/
 ├── ticket-events/
@@ -467,9 +566,37 @@ src/
 docs/
 └── ERD.md
 
-src/migrations/
-└── InitialSchema migration
+test/
+├── app.e2e-spec.ts
+└── jest-e2e.json
+
+README.md
+package.json
+tsconfig.json
+jest.config.ts
+.env.example
+.github/
+└── workflows/
+    └── ci.yml
 ```
+
+## Database Design
+
+The project contains six tables:
+
+- `users`
+- `tickets`
+- `comments`
+- `tags`
+- `ticket_tags`
+- `ticket_events`
+
+The database uses real PostgreSQL enum types for:
+
+- Ticket status
+- Ticket priority
+
+See [`docs/ERD.md`](docs/ERD.md) for the complete Mermaid ER diagram.
 
 ## CORS
 
@@ -481,9 +608,14 @@ http://localhost:3000
 
 ## CI
 
-The project CI runs on pushes and pull requests.
+The project uses GitHub Actions for continuous integration.
 
-CI performs:
+CI runs on:
+
+- Push
+- Pull request
+
+CI uses Node.js 20 and performs:
 
 ```bash
 npm ci
@@ -491,20 +623,7 @@ npm run build
 npm test
 ```
 
-CI uses Node.js 20.
-
-## Database Design
-
-The project contains six main tables:
-
-- users
-- tickets
-- comments
-- tags
-- ticket_tags
-- ticket_events
-
-See [`docs/ERD.md`](docs/ERD.md) for the complete Mermaid ER diagram.
+The final submitted commit has a green CI result.
 
 ## Security
 
@@ -514,5 +633,24 @@ See [`docs/ERD.md`](docs/ERD.md) for the complete Mermaid ER diagram.
 - Customers cannot register as agents or admins.
 - Internal comments are hidden from customers.
 - Customer ticket visibility is restricted to their own tickets.
+- Role-protected endpoints use `RolesGuard`.
 - Real secrets must be stored in environment variables.
-````
+- `.env` is not committed to the repository.
+
+---
+
+## 👨‍💻 Developer
+
+**Muhammad Haris**
+
+GitHub: [https://github.com/hariskhan-136](https://github.com/hariskhan-136)
+
+---
+
+## 🎓 Internship
+
+**Coding Pixel Full-Stack Internship Program**
+
+**Week 10 — Support Desk Backend**
+
+**Repository created for Week 10 Support Desk Backend internship exercise**
