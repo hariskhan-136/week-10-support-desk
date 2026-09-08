@@ -3,7 +3,7 @@
 ```mermaid
 erDiagram
     USERS ||--o{ TICKETS : raises
-    USERS ||--o{ TICKETS : assigned_to
+    USERS o|--o{ TICKETS : assigned_to
     USERS ||--o{ COMMENTS : writes
     TICKETS ||--o{ COMMENTS : has
     USERS ||--o{ TICKET_EVENTS : acts
