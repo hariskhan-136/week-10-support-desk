@@ -1,7 +1,12 @@
+import { ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 
+import { AppModule } from '../src/app.module';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+
 describe('Support Desk E2E', () => {
-  const baseUrl = 'http://localhost:3000';
+  let app: any;
 
   let customerToken: string;
   let secondCustomerToken: string;
@@ -11,7 +16,28 @@ describe('Support Desk E2E', () => {
   let agentId: number;
 
   beforeAll(async () => {
-    const customerLogin = await request(baseUrl)
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+
+    app.enableCors({
+      origin: 'http://localhost:3000',
+    });
+
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    );
+
+    app.useGlobalFilters(new HttpExceptionFilter());
+
+    await app.init();
+
+    const customerLogin = await request(app.getHttpServer())
       .post('/auth/login')
       .send({
         email: 'customer1@supportdesk.local',
@@ -21,7 +47,7 @@ describe('Support Desk E2E', () => {
 
     customerToken = customerLogin.body.accessToken;
 
-    const secondCustomerLogin = await request(baseUrl)
+    const secondCustomerLogin = await request(app.getHttpServer())
       .post('/auth/login')
       .send({
         email: 'customer2@supportdesk.local',
@@ -31,7 +57,7 @@ describe('Support Desk E2E', () => {
 
     secondCustomerToken = secondCustomerLogin.body.accessToken;
 
-    const agentLogin = await request(baseUrl)
+    const agentLogin = await request(app.getHttpServer())
       .post('/auth/login')
       .send({
         email: 'agent1@supportdesk.local',
@@ -41,7 +67,7 @@ describe('Support Desk E2E', () => {
 
     agentToken = agentLogin.body.accessToken;
 
-    const me = await request(baseUrl)
+    const me = await request(app.getHttpServer())
       .get('/auth/me')
       .set('Authorization', `Bearer ${agentToken}`)
       .expect(200);
@@ -49,10 +75,36 @@ describe('Support Desk E2E', () => {
     agentId = me.body.id;
   });
 
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('rejects an unauthenticated request with 401', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/tickets')
+      .expect(401);
+
+    expect(response.body.statusCode).toBe(401);
+  });
+
+  it('rejects a bad ticket request with 400', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/tickets')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({
+        subject: '',
+        body: '',
+        priority: 'invalid-priority',
+      })
+      .expect(400);
+
+    expect(response.body.statusCode).toBe(400);
+  });
+
   it('registers a new customer', async () => {
     const email = `e2e-${Date.now()}@supportdesk.local`;
 
-    const response = await request(baseUrl)
+    const response = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
         email,
@@ -67,7 +119,7 @@ describe('Support Desk E2E', () => {
   });
 
   it('creates a ticket', async () => {
-    const response = await request(baseUrl)
+    const response = await request(app.getHttpServer())
       .post('/tickets')
       .set('Authorization', `Bearer ${customerToken}`)
       .send({
@@ -87,7 +139,7 @@ describe('Support Desk E2E', () => {
   });
 
   it('lists tickets with filter and pagination', async () => {
-    const response = await request(baseUrl)
+    const response = await request(app.getHttpServer())
       .get('/tickets')
       .query({
         priority: 'high',
@@ -111,7 +163,7 @@ describe('Support Desk E2E', () => {
   });
 
   it('assigns the ticket to an agent', async () => {
-    const response = await request(baseUrl)
+    const response = await request(app.getHttpServer())
       .post(`/tickets/${ticketId}/assign`)
       .set('Authorization', `Bearer ${agentToken}`)
       .send({
@@ -123,7 +175,7 @@ describe('Support Desk E2E', () => {
   });
 
   it('performs a legal status transition', async () => {
-    const response = await request(baseUrl)
+    const response = await request(app.getHttpServer())
       .post(`/tickets/${ticketId}/status`)
       .set('Authorization', `Bearer ${agentToken}`)
       .send({
@@ -135,7 +187,7 @@ describe('Support Desk E2E', () => {
   });
 
   it('rejects an illegal status transition with 409', async () => {
-    const response = await request(baseUrl)
+    const response = await request(app.getHttpServer())
       .post(`/tickets/${ticketId}/status`)
       .set('Authorization', `Bearer ${agentToken}`)
       .send({
@@ -147,7 +199,7 @@ describe('Support Desk E2E', () => {
   });
 
   it('adds a public comment', async () => {
-    const response = await request(baseUrl)
+    const response = await request(app.getHttpServer())
       .post(`/tickets/${ticketId}/comments`)
       .set('Authorization', `Bearer ${customerToken}`)
       .send({
@@ -160,7 +212,7 @@ describe('Support Desk E2E', () => {
   });
 
   it('hides the ticket from another customer', async () => {
-    await request(baseUrl)
+    await request(app.getHttpServer())
       .get(`/tickets/${ticketId}`)
       .set('Authorization', `Bearer ${secondCustomerToken}`)
       .expect(404);

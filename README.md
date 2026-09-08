@@ -1,16 +1,18 @@
+````markdown
 # Support Desk API
 
 A role-based customer support ticket management API built with NestJS, TypeScript, PostgreSQL, TypeORM, JWT authentication, and bcrypt.
 
 ## Tech Stack
 
-- NestJS
+- NestJS 12
 - TypeScript
 - PostgreSQL
 - TypeORM
 - JWT Authentication
 - bcrypt
 - class-validator
+- Vitest
 - Jest
 - Supertest
 
@@ -84,6 +86,7 @@ DB_NAME=support_desk
 JWT_SECRET=your_jwt_secret
 JWT_EXPIRES_IN=1d
 ```
+````
 
 See `.env.example` for the required environment variable names.
 
@@ -174,6 +177,7 @@ Returns a JWT access token.
 
 ```http
 GET /auth/me
+
 Authorization: Bearer <token>
 ```
 
@@ -185,6 +189,7 @@ Returns the authenticated user's profile without exposing the password hash.
 
 ```http
 POST /tickets
+
 Authorization: Bearer <token>
 ```
 
@@ -203,6 +208,7 @@ The due date is calculated server-side from the selected priority:
 
 ```http
 GET /tickets
+
 Authorization: Bearer <token>
 ```
 
@@ -267,6 +273,7 @@ Agents and admins can view all tickets.
 
 ```http
 GET /tickets/:id
+
 Authorization: Bearer <token>
 ```
 
@@ -278,6 +285,7 @@ A customer attempting to access another customer's ticket receives `404 Not Foun
 
 ```http
 PATCH /tickets/:id
+
 Authorization: Bearer <token>
 ```
 
@@ -287,6 +295,7 @@ The ticket requester or an authorized agent can update the ticket.
 
 ```http
 POST /tickets/:id/assign
+
 Authorization: Bearer <token>
 ```
 
@@ -302,6 +311,7 @@ Every assignment creates a ticket event.
 
 ```http
 POST /tickets/:id/status
+
 Authorization: Bearer <token>
 ```
 
@@ -331,6 +341,7 @@ Every status change creates a ticket event.
 
 ```http
 DELETE /tickets/:id
+
 Authorization: Bearer <token>
 ```
 
@@ -344,6 +355,7 @@ Deleting a ticket also removes its related comments and events.
 
 ```http
 POST /tickets/:ticketId/comments
+
 Authorization: Bearer <token>
 ```
 
@@ -357,6 +369,7 @@ Customers attempting to create an internal comment receive `403 Forbidden`.
 
 ```http
 GET /tickets/:ticketId/comments
+
 Authorization: Bearer <token>
 ```
 
@@ -372,6 +385,7 @@ Internal comments are never returned to customers.
 
 ```http
 GET /tags
+
 Authorization: Bearer <token>
 ```
 
@@ -381,6 +395,7 @@ Available to all authenticated users.
 
 ```http
 POST /tags
+
 Authorization: Bearer <token>
 ```
 
@@ -396,6 +411,7 @@ Creating a duplicate tag returns:
 
 ```http
 POST /tickets/:ticketId/tags
+
 Authorization: Bearer <token>
 ```
 
@@ -405,6 +421,7 @@ Agent/admin only.
 
 ```http
 DELETE /tickets/:ticketId/tags/:tagId
+
 Authorization: Bearer <token>
 ```
 
@@ -416,6 +433,7 @@ Agent/admin only.
 
 ```http
 GET /tickets/:ticketId/events
+
 Authorization: Bearer <token>
 ```
 
@@ -475,24 +493,23 @@ Errors use a consistent response structure:
 }
 ```
 
+The API uses appropriate HTTP status codes for authentication, authorization, validation, missing resources, invalid state transitions, and invalid assignments, including:
+
+- `400 Bad Request`
+- `401 Unauthorized`
+- `403 Forbidden`
+- `404 Not Found`
+- `409 Conflict`
+- `422 Unprocessable Entity`
+
 ## Testing
 
-Run unit tests:
+### Unit Tests
+
+Run:
 
 ```bash
 npm test
-```
-
-Run end-to-end tests:
-
-```bash
-npm run test:e2e
-```
-
-Run coverage:
-
-```bash
-npm run test:cov
 ```
 
 Unit tests cover:
@@ -505,17 +522,44 @@ Unit tests cover:
 
 The unit tests mock repositories and do not require a running database.
 
-The end-to-end test uses real HTTP requests and covers:
+### End-to-End Tests
 
+Run:
+
+```bash
+npm run test:e2e
+```
+
+The E2E suite uses Vitest with Supertest and boots the Nest application inside the test suite.
+
+The test is self-contained and does not require a separately running API server.
+
+The E2E suite explicitly verifies:
+
+- Unauthenticated request returns `401`
+- Invalid ticket request returns `400`
 - Customer registration
 - Login
 - Ticket creation
 - Ticket filtering and pagination
 - Ticket assignment
 - Legal status transition
-- Illegal status transition returning `409`
-- Comment creation
-- Customer isolation returning `404`
+- Illegal status transition returns `409`
+- Public comment creation
+- Customer isolation returns `404`
+
+Latest successful verification:
+
+```text
+Test Files  1 passed (1)
+Tests       10 passed (10)
+```
+
+### Coverage
+
+```bash
+npm run test:cov
+```
 
 ## Build
 
@@ -568,13 +612,15 @@ docs/
 
 test/
 ├── app.e2e-spec.ts
-└── jest-e2e.json
+├── jest-e2e.json
+└── vitest-e2e.config.ts
 
 README.md
 package.json
 tsconfig.json
 jest.config.ts
 .env.example
+
 .github/
 └── workflows/
     └── ci.yml
@@ -597,6 +643,8 @@ The database uses real PostgreSQL enum types for:
 - Ticket priority
 
 See [`docs/ERD.md`](docs/ERD.md) for the complete Mermaid ER diagram.
+
+The `tickets.assignee_id` relationship is nullable because a ticket may exist without an assignee.
 
 ## CORS
 
@@ -623,7 +671,35 @@ npm run build
 npm test
 ```
 
-The final submitted commit has a green CI result.
+The Week 10 CI workflow validates the application without requiring a running PostgreSQL server, external API, or committed secrets.
+
+## Git and Contribution Workflow
+
+All Week 10 grader fixes and documentation changes should be made through a feature/fix branch and pull request.
+
+Required workflow:
+
+```text
+Create branch
+    ↓
+Make changes
+    ↓
+Run verification
+    ↓
+Commit changes
+    ↓
+Push branch
+    ↓
+Open Pull Request
+    ↓
+Collaborator review
+    ↓
+Collaborator merges PR
+    ↓
+Update local default branch
+```
+
+Direct pushes to the default branch should not be used for project changes that require review.
 
 ## Security
 
@@ -643,7 +719,7 @@ The final submitted commit has a green CI result.
 
 **Muhammad Haris**
 
-GitHub: [https://github.com/hariskhan-136](https://github.com/hariskhan-136)
+GitHub: https://github.com/hariskhan-136
 
 ---
 
@@ -654,3 +730,7 @@ GitHub: [https://github.com/hariskhan-136](https://github.com/hariskhan-136)
 **Week 10 — Support Desk Backend**
 
 **Repository created for Week 10 Support Desk Backend internship exercise**
+
+```
+
+```
