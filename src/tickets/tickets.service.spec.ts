@@ -248,6 +248,14 @@ describe('TicketsService', () => {
         assignee: null,
       });
 
+      usersRepository.findOne.mockResolvedValue({
+        id: 1,
+        email: 'customer1@test.com',
+        fullName: 'Customer One',
+        role: UserRole.CUSTOMER,
+        createdAt: new Date(),
+      });
+
       const result = await service.findOne(10, 1);
 
       expect(result).toBeNull();
