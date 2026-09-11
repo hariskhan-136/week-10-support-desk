@@ -95,7 +95,13 @@ export class TicketsService {
       ticket.requester.role === 'customer' &&
       ticket.requester.id !== userId
     ) {
-      return null;
+      const user = await this.usersRepository.findOne({
+        where: { id: userId },
+      });
+
+      if (user?.role === 'customer') {
+        return null;
+      }
     }
 
     return {
